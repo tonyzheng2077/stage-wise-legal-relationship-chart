@@ -1,0 +1,4 @@
+interface:
+  display_name: "Legal Stage-Wise Relationship Chart"
+  short_description: "Build dynamic relationship-status charts from opinions"
+  default_prompt: "Use $legal-stagewise-relationship-chart to analyze a case opinion and create a grounded interactive stage-wise relationship chart."

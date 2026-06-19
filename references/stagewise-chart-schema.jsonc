@@ -1,0 +1,134 @@
+{
+  "chart_type": "stagewise_relationship_chart",
+  "chart_id": "stable-chart-id",
+  "chart_title": "Case-Specific Stage-Wise Relationship Chart",
+  "case_context": {
+    "case_name": "",
+    "short_name": "",
+    "source_document": "",
+    "purpose": ""
+  },
+  "documents": [
+    {
+      "id": "opinion",
+      "title": "",
+      "filename": "",
+      "path": "relative/or/absolute/source.pdf",
+      "printed_page_offset": 0,
+      "printed_page_offset_source": "Description of the reliable consecutive-page sequence."
+    }
+  ],
+  "entities": [
+    {
+      "id": "stable_entity_id",
+      "label": "User-facing label",
+      "type": "case-appropriate entity type",
+      "visual_group": "case-appropriate visual group",
+      "description": "Concise stage-independent description."
+    }
+  ],
+  "stages": [
+    {
+      "id": "s1_status",
+      "order": 1,
+      "type": "status",
+      "title": "",
+      "period": "",
+      "summary": "",
+      "background": ["Relevant user-facing context that is not an entity action."],
+      "carry_forward_from": null,
+      "final": false
+    }
+  ],
+  "nodes_by_stage": {
+    "s1_status": [
+      { "entity_id": "stable_entity_id", "x": 0.2, "y": 0.4 }
+    ]
+  },
+  "containers_by_stage": {
+    "later_status_stage": [
+      {
+        "entity_id": "parent_entity_id",
+        "label": "Parent entity label",
+        "contains": ["subgroup_a_id", "subgroup_b_id"]
+      }
+    ]
+  },
+  "relationships_by_stage": {
+    "s1_status": [
+      {
+        "id": "s1_r1",
+        "source": "source_entity_id",
+        "target": "target_entity_id",
+        "label": "Independently readable relationship",
+        "category": "case-appropriate category",
+        "terms": ["Complete numeric or legal terms for tooltip display."],
+        "conditional": false,
+        "broken": false,
+        "action": false,
+        "inferred": false,
+        "lane_group": "optional_dense_pair_group",
+        "lane_slot": -1,
+        "lane_step": 0.3,
+        "source_refs": [
+          {
+            "document_id": "opinion",
+            "physical_page": 1,
+            "printed_page": 1,
+            "label": "Op. p. 1",
+            "quote": "Exact supporting source text.",
+            "section_or_locator": "",
+            "inference_note": "Required only for inferred status."
+          }
+        ]
+      }
+    ]
+  },
+  "entity_refs_by_stage": {
+    "s1_status": {
+      "stable_entity_id": {
+        "role": "Why this entity is displayed in this stage.",
+        "source_refs": [
+          {
+            "document_id": "opinion",
+            "physical_page": 1,
+            "printed_page": 1,
+            "label": "Op. p. 1",
+            "quote": "Exact supporting source text."
+          }
+        ]
+      }
+    }
+  },
+  "continuity_rules": {
+    "no_court_entities": true,
+    "status_stages_must_carry_forward_prior_status_entities": true,
+    "entity_may_be_represented_by_container_or_split_subgroups": true,
+    "action_stages_may_show_only_participants": true,
+    "status_action_alternation_required": true,
+    "lawsuit_between_parties_is_action_stage": true,
+    "transitions": [
+      {
+        "from_stage_id": "prior_status_stage",
+        "to_stage_id": "later_status_stage",
+        "changes": [
+          {
+            "kind": "removal | replacement | split | merge",
+            "from_entity_ids": ["prior_entity_id"],
+            "to_entity_ids": ["replacement_or_result_entity_id"],
+            "reason": "Grounded reason the prior representation changes or disappears.",
+            "source_refs": [
+              {
+                "document_id": "opinion",
+                "physical_page": 1,
+                "printed_page": 1,
+                "label": "Op. p. 1",
+                "quote": "Exact text supporting the continuity change."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>__CHART_TITLE__</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f8f6;
+    --ink: #17201a;
+    --muted: #68756d;
+    --rule: #d8ddd7;
+    --panel: #ffffff;
+    --green: #247647;
+    --red: #a9483a;
+    --blue: #2c65a8;
+    --amber: #b7791f;
+    --purple: #6b46c1;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 22px 26px 28px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  header {
+    max-width: 1280px;
+    margin: 0 auto 14px;
+  }
+  h1 {
+    margin: 0 0 5px;
+    font-size: 22px;
+    font-weight: 680;
+    letter-spacing: 0;
+  }
+  .subtitle {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  .shell {
+    max-width: 1280px;
+    margin: 0 auto;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 18px 40px rgba(24, 31, 26, 0.08);
+  }
+  .toolbar {
+    max-width: 1280px;
+    margin: 0 auto 10px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .toolbar button,
+  .source-panel button,
+  .tooltip button {
+    border: 1px solid #cfd6cf;
+    border-radius: 6px;
+    background: white;
+    color: var(--ink);
+    cursor: pointer;
+    font: inherit;
+  }
+  .toolbar button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .toolbar button:hover,
+  .source-panel button:hover,
+  .tooltip button:hover { border-color: var(--blue); color: var(--blue); }
+  #chart {
+    width: 100%;
+    min-height: 880px;
+    display: block;
+  }
+  .legend {
+    max-width: 1280px;
+    margin: 10px auto 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+  .legend-line { width: 24px; height: 0; border-top: 2px solid var(--blue); }
+  .legend-line.dashed { border-top-style: dashed; }
+  .legend-box { width: 22px; height: 14px; border: 2px solid var(--rule); border-radius: 5px; }
+  .legend-box.dotted { border-style: dotted; }
+  .tooltip {
+    position: absolute;
+    pointer-events: auto;
+    max-width: 320px;
+    padding: 9px 11px;
+    border-radius: 6px;
+    background: #121712;
+    color: white;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.24);
+    font-size: 12px;
+    line-height: 1.4;
+    opacity: 0;
+    transition: opacity 120ms ease;
+    z-index: 20;
+  }
+  .tooltip strong { color: #f6d365; }
+  .tooltip .meta { color: #b9c0bb; margin-top: 4px; font-size: 11px; }
+  .tooltip .terms { margin: 7px 0 0; padding-left: 15px; color: #edf1ec; }
+  .tooltip .terms li { margin: 2px 0; }
+  .tooltip .citation-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tooltip button {
+    padding: 4px 7px;
+    font-size: 11px;
+    background: #f7f8f6;
+  }
+  .stage-frame { fill: #fff; stroke: #cfd6cf; stroke-width: 1.4; }
+  .stage-frame.action { stroke-dasharray: 5 5; stroke-width: 1.8; }
+  .stage-frame.active { stroke: #2c65a8; stroke-width: 2.8; }
+  .stage-frame.prior { fill: #f4f5f3; }
+  .stage-title { font-size: 18px; font-weight: 700; fill: var(--ink); }
+  .stage-period { font-size: 12px; fill: var(--muted); }
+  .stage-summary { font-size: 12px; fill: #2f3a33; }
+  .stage-background { font-size: 11px; fill: #64512b; }
+  .stage-annotation { font-size: 11px; fill: #64512b; }
+  .badge { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; }
+  .container-box { fill: rgba(255, 241, 237, 0.26); stroke: #a9483a; stroke-width: 1.5; stroke-dasharray: 3 5; }
+  .container-label-bg { fill: white; opacity: 0.96; }
+  .container-label { text-anchor: middle; dominant-baseline: middle; font-size: 11px; font-weight: 700; fill: #7c372f; }
+  .node rect { stroke-width: 1.8; rx: 7; }
+  .node text { text-anchor: middle; dominant-baseline: middle; font-size: 12px; font-weight: 650; fill: var(--ink); }
+  .node .node-sub { font-size: 10px; font-weight: 500; fill: var(--muted); }
+  .node.selected rect { stroke-width: 3; filter: drop-shadow(0 0 0.2rem rgba(44, 101, 168, 0.35)); }
+  .link { fill: none; stroke-width: 1.7; opacity: 0.92; }
+  .link.conditional { stroke-dasharray: 7 4; }
+  .link.broken { stroke-dasharray: 4 4; stroke: #b83232; }
+  .leader-line { fill: none; stroke: #aeb8b1; stroke-width: 1.1; opacity: 0.78; pointer-events: none; }
+  .link-label-bg { fill: white; opacity: 0.92; }
+  .link-label-chip { cursor: grab; }
+  .link-label-chip:active { cursor: grabbing; }
+  .link-label-chip.selected .link-label-bg { stroke: #2c65a8; stroke-width: 1.8; opacity: 1; }
+  .link-label { font-size: 10.5px; font-weight: 620; fill: #26312a; text-anchor: middle; pointer-events: none; }
+  .stage-hit-area { fill: transparent; cursor: crosshair; pointer-events: all; }
+  .selection-rect { fill: rgba(44, 101, 168, 0.08); stroke: #2c65a8; stroke-width: 1.2; stroke-dasharray: 4 3; pointer-events: none; }
+  .node { cursor: grab; }
+  .node:active { cursor: grabbing; }
+  .prior .node, .prior .container, .prior .link, .prior .link-label-chip, .prior .leader-line, .prior .stage-summary, .prior .stage-background { opacity: 0.38; }
+  .future .node, .future .container, .future .link, .future .link-label-chip, .future .leader-line, .future .stage-summary, .future .stage-background { opacity: 0.16; }
+  .axis-line { stroke: #b8c1ba; stroke-width: 2; }
+  .axis-progress { stroke: #2c65a8; stroke-width: 4; stroke-linecap: round; }
+  .tick circle { fill: white; stroke: #aab4ad; stroke-width: 2; cursor: pointer; }
+  .tick.active circle { fill: #2c65a8; stroke: #2c65a8; }
+  .tick text { font-size: 11px; fill: var(--muted); text-anchor: middle; cursor: pointer; }
+  .tick.active text { fill: var(--ink); font-weight: 700; }
+  .slider-knob { fill: #2c65a8; stroke: white; stroke-width: 4; cursor: grab; filter: drop-shadow(0 5px 10px rgba(44, 101, 168, 0.28)); }
+  .slider-knob:active { cursor: grabbing; }
+  .active-note { font-size: 12px; fill: #1f2d24; }
+  .source-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: min(520px, 42vw);
+    height: 100vh;
+    background: #fffdf9;
+    border-left: 1px solid var(--rule);
+    box-shadow: -18px 0 36px rgba(24, 31, 26, 0.14);
+    transform: translateX(104%);
+    transition: transform 180ms ease;
+    z-index: 30;
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+  .source-panel.open { transform: translateX(0); }
+  .source-panel-header {
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .source-panel-title {
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .source-panel-meta {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .source-panel-quote {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 6px;
+    background: #fff7d6;
+    color: #3f3211;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .source-panel-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .source-panel-actions button { padding: 5px 9px; font-size: 12px; }
+  .source-text {
+    width: 100%;
+    height: 100%;
+    background: #f7f8f6;
+    overflow: auto;
+    padding: 20px 22px 32px;
+    color: #17201a;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 13px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+  }
+  .source-text mark {
+    background: #ffe97a;
+    color: inherit;
+    padding: 1px 2px;
+    border-radius: 2px;
+  }
+  .source-page-heading {
+    margin: 0 0 14px;
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .source-empty {
+    margin: 0;
+    color: var(--muted);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  @media (max-width: 900px) {
+    body { padding: 16px; }
+    .source-panel { width: min(100vw, 520px); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>__CHART_TITLE__</h1>
+  <p class="subtitle">Status stages show relationship emergence; action stages show relationship-changing acts. Court outcomes appear as chart context, not entities.</p>
+</header>
+<div class="toolbar">
+  <button type="button" id="reset-stage">Reset active stage</button>
+  <button type="button" id="reset-all">Reset layout</button>
+</div>
+<main class="shell">
+  <svg id="chart" viewBox="0 0 1440 880" role="img" aria-label="Stage-wise relationship chart"></svg>
+</main>
+<div class="legend">
+  <span class="legend-item"><span class="legend-box"></span> Solid frame = status</span>
+  <span class="legend-item"><span class="legend-box dotted"></span> Dotted frame = action</span>
+  <span class="legend-item"><span class="legend-line"></span> Existing relationship</span>
+  <span class="legend-item"><span class="legend-line dashed"></span> Conditional / contemplated</span>
+  <span class="legend-item"><span class="legend-line dashed" style="border-color:#b83232"></span> Failed / not forced</span>
+</div>
+<div class="tooltip" id="tooltip"></div>
+<aside class="source-panel" id="source-panel" aria-label="Source document panel">
+  <div class="source-panel-header">
+    <h2 class="source-panel-title" id="source-title">Source document</h2>
+    <p class="source-panel-meta" id="source-meta">Choose a citation from an entity or relationship label.</p>
+    <div class="source-panel-quote" id="source-quote" hidden></div>
+    <div class="source-panel-actions">
+      <button type="button" id="source-open-new">Open PDF page</button>
+      <button type="button" id="source-close">Close</button>
+    </div>
+  </div>
+  <div class="source-text" id="source-text" role="document"></div>
+</aside>
+
+<script>
+const DATA = /* __STAGEWISE_DATA__ */;
+
+const svg = d3.select("#chart");
+const tooltip = d3.select("#tooltip");
+const sourcePanel = d3.select("#source-panel");
+const sourceText = d3.select("#source-text");
+const sourceTitle = d3.select("#source-title");
+const sourceMeta = d3.select("#source-meta");
+const sourceQuote = d3.select("#source-quote");
+const W = 1440;
+const H = 880;
+const panelW = 1080;
+const panelH = 620;
+const gap = 88;
+const topY = 42;
+const axisTop = 735;
+const panelStep = panelW + gap;
+const layout = {
+  padX: 30,
+  drawTop: 158,
+  drawBottom: 66,
+  labelTop: 150,
+  labelBottom: 64,
+  containerTop: 148
+};
+const stages = DATA.stages.slice().sort((a, b) => a.order - b.order);
+const entityById = new Map(DATA.entities.map(d => [d.id, d]));
+const documentById = new Map((DATA.documents || []).map(d => [d.id, d]));
+const chartId = DATA.chart_id || DATA.chart_title || "stagewise-chart";
+const layoutStorageKey = `stagewise-layout:${chartId}:v2`;
+const panels = new Map();
+
+const visualGroupPalette = [
+  { fill: "#eef8f0", stroke: "#247647" },
+  { fill: "#fff1ed", stroke: "#a9483a" },
+  { fill: "#edf4ff", stroke: "#2c65a8" },
+  { fill: "#f5f0ff", stroke: "#6b46c1" },
+  { fill: "#fff8e8", stroke: "#9a6b19" },
+  { fill: "#eef7f7", stroke: "#247277" }
+];
+const neutralColor = { fill: "#f6f7f6", stroke: "#7b857d" };
+const visualGroupColors = new Map();
+
+function colorForVisualGroup(group) {
+  if (!group || group === "neutral") return neutralColor;
+  if (!visualGroupColors.has(group)) {
+    visualGroupColors.set(
+      group,
+      visualGroupPalette[visualGroupColors.size % visualGroupPalette.length]
+    );
+  }
+  return visualGroupColors.get(group);
+}
+const linkColors = {
+  ownership: "#3a7352",
+  agreement: "#2c65a8",
+  formation: "#2c65a8",
+  conditional: "#637083",
+  condition: "#6b46c1",
+  condition_failed: "#b83232",
+  cash: "#b7791f",
+  equity: "#a9483a",
+  asset_transfer: "#247647",
+  participation: "#6b46c1",
+  tax_analysis: "#6b46c1",
+  proposal: "#2c65a8"
+};
+
+let activeIndex = 0;
+let tooltipHideTimer = null;
+let activeSourceUrl = "";
+let layoutOverrides = loadLayoutOverrides();
+let selectionState = { stageId: null, keys: new Set() };
+let groupDragState = null;
+
+function itemKey(kind, id) {
+  return `${kind}:${id}`;
+}
+
+function isSelected(stage, kind, id) {
+  return selectionState.stageId === stage.id && selectionState.keys.has(itemKey(kind, id));
+}
+
+function clearSelection() {
+  selectionState = { stageId: null, keys: new Set() };
+}
+
+function rectsIntersect(a, b) {
+  return Math.max(a.x1, b.x1) <= Math.min(a.x2, b.x2) && Math.max(a.y1, b.y1) <= Math.min(a.y2, b.y2);
+}
+
+function initialStageIndex() {
+  const match = window.location.hash.match(/stage=(\d+)/);
+  if (!match) return 0;
+  const requested = Number(match[1]) - 1;
+  return Math.max(0, Math.min(stages.length - 1, requested));
+}
+
+svg.append("defs").selectAll("marker")
+  .data(Object.keys(linkColors).concat(["default"]))
+  .join("marker")
+  .attr("id", d => `arrow-${d}`)
+  .attr("viewBox", "0 -6 12 12")
+  .attr("refX", 10)
+  .attr("refY", 0)
+  .attr("markerWidth", 8)
+  .attr("markerHeight", 8)
+  .attr("orient", "auto")
+  .append("path")
+  .attr("d", "M0,-5L10,0L0,5Z")
+  .attr("fill", d => linkColors[d] || "#637083");
+
+const stageViewport = svg.append("g").attr("class", "stage-viewport");
+const stageStrip = stageViewport.append("g").attr("class", "stage-strip");
+const axisG = svg.append("g").attr("class", "stage-axis").attr("transform", `translate(0,${axisTop})`);
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function normalizeForSearch(value) {
+  return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function normalizedSpan(haystack, needle) {
+  const normalizedNeedle = normalizeForSearch(needle);
+  if (!normalizedNeedle) return null;
+  const rawIndex = haystack.indexOf(needle);
+  if (rawIndex >= 0) return [rawIndex, rawIndex + needle.length];
+
+  let normalized = "";
+  const rawPositions = [];
+  let inSpace = false;
+  for (let index = 0; index < haystack.length; index += 1) {
+    const char = haystack[index];
+    if (/\s/.test(char)) {
+      if (!inSpace && normalized.length) {
+        normalized += " ";
+        rawPositions.push(index);
+        inSpace = true;
+      }
+    } else {
+      normalized += char.toLowerCase();
+      rawPositions.push(index);
+      inSpace = false;
+    }
+  }
+  const start = normalized.indexOf(normalizedNeedle);
+  if (start < 0) return null;
+  const rawStart = rawPositions[start];
+  const rawEnd = rawPositions[Math.min(start + normalizedNeedle.length - 1, rawPositions.length - 1)] + 1;
+  return [rawStart, rawEnd];
+}
+
+function textLines(text, maxChars) {
+  const words = String(text || "").split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = "";
+  words.forEach(word => {
+    const next = line ? `${line} ${word}` : word;
+    if (next.length > maxChars && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  });
+  if (line) lines.push(line);
+  return lines;
+}
+
+function loadLayoutOverrides() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(layoutStorageKey) || "{}");
+    return {
+      nodes: parsed.nodes || {},
+      labels: parsed.labels || {}
+    };
+  } catch {
+    return { nodes: {}, labels: {} };
+  }
+}
+
+function saveLayoutOverrides() {
+  localStorage.setItem(layoutStorageKey, JSON.stringify(layoutOverrides));
+}
+
+function stageOverrideBucket(kind, stageId) {
+  layoutOverrides[kind][stageId] ||= {};
+  return layoutOverrides[kind][stageId];
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function sourceRefs(item) {
+  if (Array.isArray(item?.source_refs) && item.source_refs.length) {
+    return item.source_refs;
+  }
+  return [];
+}
+
+function citationButtonsHtml(item) {
+  const refs = sourceRefs(item);
+  if (!refs.length) {
+    return item?.citation ? `<div class="meta">${escapeHtml(item.citation)}</div>` : "";
+  }
+  const buttons = refs.map((ref, index) => {
+    const label = escapeHtml(ref.label || `Op. p. ${ref.printed_page}`);
+    return `<button type="button" data-ref-index="${index}">${label}</button>`;
+  }).join("");
+  return `<div class="citation-buttons">${buttons}</div>`;
+}
+
+function termsHtml(item) {
+  const terms = Array.isArray(item?.terms) ? item.terms : [];
+  if (!terms.length) return "";
+  return `<ul class="terms">${terms.map(term => `<li>${escapeHtml(term)}</li>`).join("")}</ul>`;
+}
+
+function inferenceHtml(item) {
+  const notes = sourceRefs(item).map(ref => ref.inference_note).filter(Boolean);
+  if (!notes.length) return "";
+  return `<div class="meta">${escapeHtml(notes[0])}</div>`;
+}
+
+function entityTooltipItem(stage, entity) {
+  const stageRefs = DATA.entity_refs_by_stage?.[stage.id]?.[entity.id] || {};
+  return {
+    label: entity.label,
+    source_refs: stageRefs.source_refs || [],
+    terms: stageRefs.terms || [],
+    citation: stageRefs.citation || "",
+    tooltip_kind: "Entity"
+  };
+}
+
+function showTooltip(event, item, body = "Relationship/action edge") {
+  clearTimeout(tooltipHideTimer);
+  const isItem = typeof item === "object" && item;
+  const title = isItem ? item.label : String(item || "");
+  const meta = isItem ? `${termsHtml(item)}${inferenceHtml(item)}${citationButtonsHtml(item)}` : "";
+  tooltip
+    .style("opacity", 1)
+    .html(`<strong>${escapeHtml(title)}</strong><div>${escapeHtml(body || "")}</div>${meta}`)
+    .style("left", `${event.pageX + 14}px`)
+    .style("top", `${event.pageY + 14}px`);
+  if (isItem) {
+    tooltip.selectAll("button").each(function(_, index) {
+      d3.select(this).on("click", () => openSourcePanel(item, sourceRefs(item)[index]));
+    });
+  }
+}
+
+function hideTooltip() {
+  tooltipHideTimer = setTimeout(() => tooltip.style("opacity", 0), 140);
+}
+
+tooltip
+  .on("mouseenter", () => clearTimeout(tooltipHideTimer))
+  .on("mouseleave", hideTooltip);
+
+function openSourcePanel(item, ref) {
+  const docMeta = documentById.get(ref.document_id) || DATA.documents?.[0] || {};
+  const physicalPage = Math.max(1, Number(ref.physical_page || 1));
+  const printedPage = Math.max(1, Number(ref.printed_page || physicalPage));
+  const path = docMeta.path || DATA.case_context?.source_document || "";
+  const url = `${encodeURI(path)}#page=${physicalPage}`;
+  const pageText = DATA.source_pages?.[ref.document_id]?.[String(physicalPage)] || "";
+  const quote = String(ref.quote || "").trim();
+  const span = quote ? normalizedSpan(pageText, quote) : null;
+  activeSourceUrl = url;
+  sourceTitle.text(item.label || "Source document");
+  sourceMeta.text(`${docMeta.title || docMeta.filename || "Source document"} - ${ref.label || `Op. p. ${printedPage}`}`);
+  if (quote) {
+    sourceQuote.attr("hidden", null).text(quote);
+  } else {
+    sourceQuote.attr("hidden", true).text("");
+  }
+  if (!pageText) {
+    sourceText.html(`<p class="source-empty">No extracted text is available for this opinion page. Use the PDF page button above.</p>`);
+  } else if (span) {
+    const before = escapeHtml(pageText.slice(0, span[0]));
+    const match = escapeHtml(pageText.slice(span[0], span[1]));
+    const after = escapeHtml(pageText.slice(span[1]));
+    sourceText.html(`<div class="source-page-heading">Opinion page ${printedPage}</div>${before}<mark id="active-source-mark">${match}</mark>${after}`);
+  } else {
+    sourceText.html(`<div class="source-page-heading">Opinion page ${printedPage}</div>${escapeHtml(pageText)}`);
+  }
+  sourcePanel.classed("open", true);
+  setTimeout(() => {
+    const mark = document.getElementById?.("active-source-mark");
+    if (mark) mark.scrollIntoView({ block: "center" });
+    else sourceText.node()?.scrollTo({ top: 0 });
+  }, 20);
+}
+
+d3.select("#source-close").on("click", () => sourcePanel.classed("open", false));
+d3.select("#source-open-new").on("click", () => {
+  if (activeSourceUrl) window.open(activeSourceUrl, "_blank", "noopener,noreferrer");
+});
+
+function nodeBox(entity) {
+  const widthByType = {
+    stockholder_group: 154,
+    unitholder_group: 168,
+    asset_pool: 142,
+    transaction_vehicle: 120,
+    advisor: 112,
+    person: 116,
+    company: 116,
+    partnership: 116
+  };
+  return { w: widthByType[entity.type] || 128, h: entity.type === "asset_pool" ? 44 : 50 };
+}
+
+function localNode(stage, nodeRef) {
+  const entity = entityById.get(nodeRef.entity_id);
+  const box = nodeBox(entity);
+  const override = layoutOverrides.nodes?.[stage.id]?.[nodeRef.entity_id];
+  const nx = override?.x ?? nodeRef.x;
+  const ny = override?.y ?? nodeRef.y;
+  return {
+    ...nodeRef,
+    entity,
+    x: layout.padX + nx * (panelW - layout.padX * 2),
+    y: layout.drawTop + ny * (panelH - layout.drawTop - layout.drawBottom),
+    box
+  };
+}
+
+function nodeClampX(node, x) {
+  return clamp(x, node.box.w / 2 + layout.padX, panelW - node.box.w / 2 - layout.padX);
+}
+
+function nodeClampY(node, y) {
+  return clamp(y, layout.drawTop + node.box.h / 2, panelH - layout.drawBottom - node.box.h / 2);
+}
+
+function nodeNormalizedX(x) {
+  return clamp((x - layout.padX) / (panelW - layout.padX * 2), 0, 1);
+}
+
+function nodeNormalizedY(y) {
+  return clamp((y - layout.drawTop) / (panelH - layout.drawTop - layout.drawBottom), 0, 1);
+}
+
+function labelClampX(dims, x) {
+  return clamp(x, layout.padX + dims.w / 2, panelW - layout.padX - dims.w / 2);
+}
+
+function labelClampY(dims, y) {
+  return clamp(y, layout.labelTop + dims.h / 2, panelH - layout.labelBottom - dims.h / 2);
+}
+
+function effectiveCurve(link) {
+  return Number.isFinite(link._curve) ? link._curve : (link.curve || 0);
+}
+
+function markerKey(link) {
+  if (link.broken) return "condition_failed";
+  return Object.prototype.hasOwnProperty.call(linkColors, link.category) ? link.category : "default";
+}
+
+function pairKey(link) {
+  return link.lane_group || [link.source, link.target].sort().join("::");
+}
+
+function laneDirectionSign(link) {
+  const canonical = [link.source, link.target].sort();
+  return link.source === canonical[0] ? 1 : -1;
+}
+
+function assignEdgeLanes(links) {
+  const groups = d3.group(links, pairKey);
+  const prepared = [];
+  groups.forEach(group => {
+    if (group.length === 1) {
+      prepared.push({ ...group[0], _curve: group[0].curve || 0 });
+      return;
+    }
+    const explicitSlots = group.every(link => Number.isFinite(link.lane_slot));
+    const step = Math.max(Number(group[0].lane_step) || (group.length >= 4 ? 0.24 : 0.3), 0.18);
+    const sorted = group.slice().sort((a, b) => {
+      if (explicitSlots) return a.lane_slot - b.lane_slot;
+      const ac = a.curve ?? 0;
+      const bc = b.curve ?? 0;
+      if (ac !== bc) return ac - bc;
+      if (a.source !== b.source) return a.source.localeCompare(b.source);
+      return String(a.id).localeCompare(String(b.id));
+    });
+    sorted.forEach((link, index) => {
+      const lane = explicitSlots ? link.lane_slot * step : (index - (sorted.length - 1) / 2) * step;
+      prepared.push({ ...link, _curve: lane * laneDirectionSign(link), _visualLane: lane });
+    });
+  });
+  return links.map(link => prepared.find(candidate => candidate.id === link.id) || link);
+}
+
+function edgeGeometry(source, target, curve = 0) {
+  const centerDx = target.x - source.x;
+  const centerDy = target.y - source.y;
+  const centerMx = (source.x + target.x) / 2;
+  const centerMy = (source.y + target.y) / 2;
+  const centerNorm = Math.hypot(centerDx, centerDy) || 1;
+  const centerPx = -centerDy / centerNorm;
+  const centerPy = centerDx / centerNorm;
+  const roughControl = {
+    x: centerMx + centerPx * curve * 120,
+    y: centerMy + centerPy * curve * 120
+  };
+  const start = boundaryPoint(source, roughControl);
+  const end = boundaryPoint(target, roughControl);
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const mx = (start.x + end.x) / 2;
+  const my = (start.y + end.y) / 2;
+  const norm = Math.hypot(dx, dy) || 1;
+  const px = -dy / norm;
+  const py = dx / norm;
+  const c = curve * 120;
+  const cx = mx + px * c;
+  const cy = my + py * c;
+  return { dx, dy, mx, my, norm, px, py, cx, cy, start, end };
+}
+
+function edgePath(source, target, curve = 0) {
+  const geom = edgeGeometry(source, target, curve);
+  return `M${geom.start.x},${geom.start.y} Q${geom.cx},${geom.cy} ${geom.end.x},${geom.end.y}`;
+}
+
+function quadPoint(source, target, curve, t) {
+  const geom = edgeGeometry(source, target, curve);
+  const mt = 1 - t;
+  return {
+    x: mt * mt * geom.start.x + 2 * mt * t * geom.cx + t * t * geom.end.x,
+    y: mt * mt * geom.start.y + 2 * mt * t * geom.cy + t * t * geom.end.y
+  };
+}
+
+function boundaryPoint(node, toward) {
+  const dx = toward.x - node.x;
+  const dy = toward.y - node.y;
+  const halfW = node.box.w / 2 + 2;
+  const halfH = node.box.h / 2 + 2;
+  if (!dx && !dy) return { x: node.x, y: node.y };
+  const scaleX = Math.abs(dx) > 0.0001 ? halfW / Math.abs(dx) : Infinity;
+  const scaleY = Math.abs(dy) > 0.0001 ? halfH / Math.abs(dy) : Infinity;
+  const scale = Math.min(scaleX, scaleY);
+  return {
+    x: node.x + dx * scale,
+    y: node.y + dy * scale
+  };
+}
+
+function nodeBounds(node, pad = 8) {
+  return {
+    x1: node.x - node.box.w / 2 - pad,
+    y1: node.y - node.box.h / 2 - pad,
+    x2: node.x + node.box.w / 2 + pad,
+    y2: node.y + node.box.h / 2 + pad
+  };
+}
+
+function labelDimensions(label) {
+  const text = String(label || "");
+  const rawLines = textLines(text, 22);
+  const lines = rawLines.length <= 2 ? rawLines : [rawLines[0], rawLines.slice(1).join(" ")];
+  const longest = lines.reduce((max, line) => Math.max(max, line.length), 0);
+  const fontSize = longest > 30 ? 9.5 : 10.5;
+  return {
+    lines,
+    fontSize,
+    w: Math.min(Math.max(longest * fontSize * 0.57 + 18, 72), 224),
+    h: lines.length > 1 ? 34 : 20
+  };
+}
+
+function labelBounds(candidate, dims, pad = 4) {
+  return {
+    x1: candidate.x - dims.w / 2 - pad,
+    y1: candidate.y - dims.h / 2 - pad,
+    x2: candidate.x + dims.w / 2 + pad,
+    y2: candidate.y + dims.h / 2 + pad
+  };
+}
+
+function overlapArea(a, b) {
+  const w = Math.max(0, Math.min(a.x2, b.x2) - Math.max(a.x1, b.x1));
+  const h = Math.max(0, Math.min(a.y2, b.y2) - Math.max(a.y1, b.y1));
+  return w * h;
+}
+
+function distance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function labelCandidates(source, target, curve, dims) {
+  const geom = edgeGeometry(source, target, curve);
+  const center = quadPoint(source, target, curve, 0.5);
+  const sourceSide = quadPoint(source, target, curve, 0.32);
+  const targetSide = quadPoint(source, target, curve, 0.68);
+  const normalBoost = Math.max(24, Math.abs(curve) * 56);
+  const sign = curve < 0 ? -1 : 1;
+  const baseNormal = { x: geom.px * sign, y: geom.py * sign };
+  const candidates = [
+    { name: "center-offset", x: center.x + baseNormal.x * normalBoost, y: center.y + baseNormal.y * normalBoost, anchor: center },
+    { name: "above", x: center.x, y: center.y - 46, anchor: center },
+    { name: "below", x: center.x, y: center.y + 46, anchor: center },
+    { name: "left", x: center.x - dims.w / 2 - 34, y: center.y, anchor: center },
+    { name: "right", x: center.x + dims.w / 2 + 34, y: center.y, anchor: center },
+    { name: "source-side", x: sourceSide.x + geom.px * 34, y: sourceSide.y + geom.py * 34, anchor: sourceSide },
+    { name: "target-side", x: targetSide.x + geom.px * 34, y: targetSide.y + geom.py * 34, anchor: targetSide },
+    { name: "source-opposite", x: sourceSide.x - geom.px * 34, y: sourceSide.y - geom.py * 34, anchor: sourceSide },
+    { name: "target-opposite", x: targetSide.x - geom.px * 34, y: targetSide.y - geom.py * 34, anchor: targetSide }
+  ];
+  return candidates.map(candidate => ({
+    ...candidate,
+    x: labelClampX(dims, candidate.x),
+    y: labelClampY(dims, candidate.y)
+  }));
+}
+
+function scoreLabelCandidate(candidate, dims, nodeBoxes, placedLabelBoxes, edgeSamples) {
+  const bounds = labelBounds(candidate, dims);
+  let score = distance(candidate, candidate.anchor) * 0.18;
+  const panelBounds = { x1: layout.padX, y1: layout.labelTop, x2: panelW - layout.padX, y2: panelH - layout.labelBottom };
+  if (bounds.x1 < panelBounds.x1) score += (panelBounds.x1 - bounds.x1) * 80;
+  if (bounds.x2 > panelBounds.x2) score += (bounds.x2 - panelBounds.x2) * 80;
+  if (bounds.y1 < panelBounds.y1) score += (panelBounds.y1 - bounds.y1) * 80;
+  if (bounds.y2 > panelBounds.y2) score += (bounds.y2 - panelBounds.y2) * 80;
+  nodeBoxes.forEach(box => { score += overlapArea(bounds, box) * 3.5; });
+  placedLabelBoxes.forEach(box => { score += overlapArea(bounds, box) * 5.5; });
+  edgeSamples.forEach(point => {
+    if (point.x >= bounds.x1 && point.x <= bounds.x2 && point.y >= bounds.y1 && point.y <= bounds.y2) {
+      score += 280;
+    }
+  });
+  return score;
+}
+
+function bestLabelPlacement(stage, link, source, target, dims, nodeBoxes, placedLabelBoxes, allEdgeSamples) {
+  const manual = layoutOverrides.labels?.[stage.id]?.[link.id];
+  const curve = effectiveCurve(link);
+  const anchor = quadPoint(source, target, curve, 0.5);
+  if (manual) {
+    return {
+      x: manual.x,
+      y: manual.y,
+      anchor,
+      bounds: labelBounds(manual, dims),
+      manual: true
+    };
+  }
+  const candidates = labelCandidates(source, target, curve, dims);
+  const ranked = candidates
+    .map(candidate => ({
+      ...candidate,
+      score: scoreLabelCandidate(candidate, dims, nodeBoxes, placedLabelBoxes, allEdgeSamples)
+    }))
+    .sort((a, b) => a.score - b.score);
+  const chosen = ranked[0];
+  return {
+    ...chosen,
+    bounds: labelBounds(chosen, dims),
+    manual: false
+  };
+}
+
+function edgeSamplesFor(source, target, curve) {
+  return d3.range(0.18, 0.86, 0.14).map(t => quadPoint(source, target, curve, t));
+}
+
+function leaderPath(label, anchor) {
+  const mid = { x: (label.x + anchor.x) / 2, y: (label.y + anchor.y) / 2 - 8 };
+  return `M${label.x},${label.y} Q${mid.x},${mid.y} ${anchor.x},${anchor.y}`;
+}
+
+function containerBounds(container, nodeById) {
+  const childNodes = (container.contains || []).map(id => nodeById.get(id)).filter(Boolean);
+  if (!childNodes.length) return null;
+  const childBounds = childNodes.map(node => nodeBounds(node, 14));
+  const x1 = Math.max(layout.padX, d3.min(childBounds, d => d.x1) - 18);
+  const y1 = Math.max(layout.containerTop, d3.min(childBounds, d => d.y1) - 32);
+  const x2 = Math.min(panelW - layout.padX, d3.max(childBounds, d => d.x2) + 18);
+  const y2 = Math.min(panelH - layout.drawBottom, d3.max(childBounds, d => d.y2) + 18);
+  return { x1, y1, x2, y2, w: x2 - x1, h: y2 - y1 };
+}
+
+function containerTooltipItem(stage, container) {
+  const entity = entityById.get(container.entity_id) || { label: container.label || "Container", description: "" };
+  const stageRefs = DATA.entity_refs_by_stage?.[stage.id]?.[container.entity_id] || {};
+  return {
+    label: container.label || entity.label,
+    source_refs: container.source_refs || stageRefs.source_refs || [],
+    terms: container.terms || stageRefs.terms || [],
+    citation: stageRefs.citation || "",
+    tooltip_kind: "Container"
+  };
+}
+
+function collectSelectedItems(stage, nodes, labelPlacements) {
+  if (selectionState.stageId !== stage.id || !selectionState.keys.size) return [];
+  const nodeByKey = new Map(nodes.map(node => [itemKey("node", node.entity.id), node]));
+  const selected = [];
+  selectionState.keys.forEach(key => {
+    if (key.startsWith("node:")) {
+      const node = nodeByKey.get(key);
+      if (node) selected.push({ kind: "node", id: node.entity.id, x: node.x, y: node.y, box: node.box });
+    } else if (key.startsWith("label:")) {
+      const label = labelPlacements.get(key.slice("label:".length));
+      if (label) selected.push({ kind: "label", id: label.id, x: label.x, y: label.y, dims: label.dims });
+    }
+  });
+  return selected;
+}
+
+function startGroupDrag(stage, event, nodes, labelPlacements) {
+  groupDragState = {
+    stageId: stage.id,
+    startX: event.x,
+    startY: event.y,
+    items: collectSelectedItems(stage, nodes, labelPlacements)
+  };
+}
+
+function dragSelectedGroup(stage, event) {
+  if (!groupDragState || groupDragState.stageId !== stage.id) return;
+  const dx = event.x - groupDragState.startX;
+  const dy = event.y - groupDragState.startY;
+  groupDragState.items.forEach(item => {
+    if (item.kind === "node") {
+      const x = nodeClampX(item, item.x + dx);
+      const y = nodeClampY(item, item.y + dy);
+      d3.select(`[data-stage-item-key="${stage.id}:${itemKey("node", item.id)}"]`).attr("transform", `translate(${x},${y})`);
+    } else {
+      const x = labelClampX(item.dims, item.x + dx);
+      const y = labelClampY(item.dims, item.y + dy);
+      d3.select(`[data-stage-item-key="${stage.id}:${itemKey("label", item.id)}"]`).attr("transform", `translate(${x},${y})`);
+    }
+  });
+}
+
+function finishGroupDrag(stage, event) {
+  if (!groupDragState || groupDragState.stageId !== stage.id) return;
+  const dx = event.x - groupDragState.startX;
+  const dy = event.y - groupDragState.startY;
+  const nodeBucket = stageOverrideBucket("nodes", stage.id);
+  const labelBucket = stageOverrideBucket("labels", stage.id);
+  groupDragState.items.forEach(item => {
+    if (item.kind === "node") {
+      const nodeLike = { box: item.box };
+      const x = nodeClampX(nodeLike, item.x + dx);
+      const y = nodeClampY(nodeLike, item.y + dy);
+      nodeBucket[item.id] = { x: nodeNormalizedX(x), y: nodeNormalizedY(y) };
+    } else {
+      labelBucket[item.id] = {
+        x: labelClampX(item.dims, item.x + dx),
+        y: labelClampY(item.dims, item.y + dy)
+      };
+    }
+  });
+  groupDragState = null;
+  saveLayoutOverrides();
+  drawPanelContents(stage);
+  setActive(activeIndex, { preserveHash: true, noTransition: true });
+}
+
+function drawPanelContents(stage) {
+  const entry = panels.get(stage.id);
+  if (!entry) return;
+  const { dynamic } = entry;
+  dynamic.selectAll("*").remove();
+
+  const nodeRefs = DATA.nodes_by_stage[stage.id] || [];
+  const nodes = nodeRefs.map(ref => localNode(stage, ref));
+  const nodeById = new Map(nodes.map(node => [node.entity.id, node]));
+  const containers = DATA.containers_by_stage?.[stage.id] || [];
+  const links = assignEdgeLanes(DATA.relationships_by_stage[stage.id] || []);
+  const nodeBoxes = nodes.map(node => nodeBounds(node));
+  const labelPlacements = new Map();
+  const allEdgeSamples = links.flatMap(link => {
+    const source = nodeById.get(link.source);
+    const target = nodeById.get(link.target);
+    return source && target ? edgeSamplesFor(source, target, effectiveCurve(link)) : [];
+  });
+  const placedLabelBoxes = [];
+
+  const hitG = dynamic.append("g").attr("class", "selection-hit-layer");
+  const containerG = dynamic.append("g").attr("class", "containers");
+  const linkG = dynamic.append("g").attr("class", "links");
+  const leaderG = dynamic.append("g").attr("class", "leaders");
+  const labelG = dynamic.append("g").attr("class", "labels");
+  const nodeG = dynamic.append("g").attr("class", "nodes");
+  const marqueeG = dynamic.append("g").attr("class", "marquee-layer");
+  let marqueeStart = null;
+  let marqueeRect = null;
+
+  hitG.append("rect")
+    .attr("class", "stage-hit-area")
+    .attr("x", layout.padX)
+    .attr("y", layout.labelTop - 12)
+    .attr("width", panelW - layout.padX * 2)
+    .attr("height", panelH - layout.labelTop - layout.labelBottom + 24)
+    .call(d3.drag()
+      .filter(() => stage.id === stages[activeIndex].id)
+      .on("start", event => {
+        marqueeStart = { x: event.x, y: event.y };
+        marqueeRect = marqueeG.append("rect")
+          .attr("class", "selection-rect")
+          .attr("x", event.x)
+          .attr("y", event.y)
+          .attr("width", 0)
+          .attr("height", 0);
+      })
+      .on("drag", event => {
+        if (!marqueeStart || !marqueeRect) return;
+        const x1 = Math.min(marqueeStart.x, event.x);
+        const y1 = Math.min(marqueeStart.y, event.y);
+        const x2 = Math.max(marqueeStart.x, event.x);
+        const y2 = Math.max(marqueeStart.y, event.y);
+        marqueeRect
+          .attr("x", x1)
+          .attr("y", y1)
+          .attr("width", x2 - x1)
+          .attr("height", y2 - y1);
+      })
+      .on("end", event => {
+        if (!marqueeStart) return;
+        const selectionRect = {
+          x1: Math.min(marqueeStart.x, event.x),
+          y1: Math.min(marqueeStart.y, event.y),
+          x2: Math.max(marqueeStart.x, event.x),
+          y2: Math.max(marqueeStart.y, event.y)
+        };
+        const width = selectionRect.x2 - selectionRect.x1;
+        const height = selectionRect.y2 - selectionRect.y1;
+        marqueeRect?.remove();
+        marqueeStart = null;
+        marqueeRect = null;
+        if (width < 6 && height < 6) {
+          clearSelection();
+        } else {
+          const keys = new Set();
+          nodes.forEach(node => {
+            if (rectsIntersect(selectionRect, nodeBounds(node))) keys.add(itemKey("node", node.entity.id));
+          });
+          labelPlacements.forEach(label => {
+            if (rectsIntersect(selectionRect, label.bounds)) keys.add(itemKey("label", label.id));
+          });
+          selectionState = { stageId: stage.id, keys };
+        }
+        drawPanelContents(stage);
+        setActive(activeIndex, { preserveHash: true, noTransition: true });
+      }));
+
+  containers.forEach(container => {
+    const bounds = containerBounds(container, nodeById);
+    if (!bounds) return;
+    const tooltipItem = containerTooltipItem(stage, container);
+    const group = containerG.append("g")
+      .attr("class", "container")
+      .on("mouseenter", event => showTooltip(event, tooltipItem, "Parent group represented by contained entities"))
+      .on("pointerdown", event => showTooltip(event, tooltipItem, "Parent group represented by contained entities"))
+      .on("mousedown", event => showTooltip(event, tooltipItem, "Parent group represented by contained entities"))
+      .on("click", event => showTooltip(event, tooltipItem, "Parent group represented by contained entities"))
+      .on("mouseleave", hideTooltip);
+    group.append("rect")
+      .attr("class", "container-box")
+      .attr("x", bounds.x1)
+      .attr("y", bounds.y1)
+      .attr("width", bounds.w)
+      .attr("height", bounds.h)
+      .attr("rx", 10);
+    const labelX = bounds.x1 + bounds.w / 2;
+    const labelY = bounds.y1 + 1;
+    group.append("rect")
+      .attr("class", "container-label-bg")
+      .attr("x", labelX - 58)
+      .attr("y", labelY - 10)
+      .attr("width", 116)
+      .attr("height", 20)
+      .attr("rx", 4);
+    group.append("text")
+      .attr("class", "container-label")
+      .attr("x", labelX)
+      .attr("y", labelY)
+      .text(container.label || tooltipItem.label);
+  });
+
+  links.forEach(link => {
+    const source = nodeById.get(link.source);
+    const target = nodeById.get(link.target);
+    if (!source || !target) return;
+    const color = link.broken ? "#b83232" : (linkColors[link.category] || "#637083");
+    linkG.append("path")
+      .attr("class", `link ${link.conditional ? "conditional" : ""} ${link.broken ? "broken" : ""}`)
+      .attr("d", edgePath(source, target, effectiveCurve(link)))
+      .attr("stroke", color)
+      .attr("marker-end", `url(#arrow-${markerKey(link)})`)
+      .on("mouseenter", event => showTooltip(event, link, link.category || "Relationship/action edge"))
+      .on("pointerdown", event => showTooltip(event, link, link.category || "Relationship/action edge"))
+      .on("mousedown", event => showTooltip(event, link, link.category || "Relationship/action edge"))
+      .on("click", event => showTooltip(event, link, link.category || "Relationship/action edge"))
+      .on("mouseleave", hideTooltip);
+
+    if (link.show_label !== false) {
+      const dims = labelDimensions(link.label);
+      const placement = bestLabelPlacement(stage, link, source, target, dims, nodeBoxes, placedLabelBoxes, allEdgeSamples);
+      labelPlacements.set(link.id, { id: link.id, x: placement.x, y: placement.y, bounds: placement.bounds, dims });
+      placedLabelBoxes.push(placement.bounds);
+      const anchorDistance = distance(placement, placement.anchor);
+      if (placement.manual || anchorDistance > 30) {
+        leaderG.append("path")
+          .attr("class", "leader-line")
+          .attr("d", leaderPath(placement, placement.anchor));
+      }
+      const chip = labelG.append("g")
+        .attr("class", "link-label-chip")
+        .classed("selected", isSelected(stage, "label", link.id))
+        .attr("data-stage-item-key", `${stage.id}:${itemKey("label", link.id)}`)
+        .attr("transform", `translate(${placement.x},${placement.y})`)
+        .on("mouseenter", event => showTooltip(event, link))
+        .on("pointerdown", event => showTooltip(event, link))
+        .on("mousedown", event => showTooltip(event, link))
+        .on("click", event => showTooltip(event, link))
+        .on("mouseleave", hideTooltip)
+        .call(d3.drag()
+          .filter(() => stage.id === stages[activeIndex].id)
+          .on("start", event => {
+            event.sourceEvent?.stopPropagation?.();
+            if (isSelected(stage, "label", link.id) && selectionState.keys.size > 1) {
+              startGroupDrag(stage, event, nodes, labelPlacements);
+            }
+          })
+          .on("drag", function(event) {
+            if (groupDragState) {
+              dragSelectedGroup(stage, event);
+              return;
+            }
+            const x = labelClampX(dims, event.x);
+            const y = labelClampY(dims, event.y);
+            d3.select(this).attr("transform", `translate(${x},${y})`);
+          })
+          .on("end", event => {
+            if (groupDragState) {
+              finishGroupDrag(stage, event);
+              return;
+            }
+            const bucket = stageOverrideBucket("labels", stage.id);
+            bucket[link.id] = {
+              x: labelClampX(dims, event.x),
+              y: labelClampY(dims, event.y)
+            };
+            saveLayoutOverrides();
+            drawPanelContents(stage);
+            setActive(activeIndex, { preserveHash: true, noTransition: true });
+          }));
+      chip.append("rect")
+        .attr("class", "link-label-bg")
+        .attr("x", -dims.w / 2)
+        .attr("y", -dims.h / 2)
+        .attr("width", dims.w)
+        .attr("height", dims.h)
+        .attr("rx", 4);
+      dims.lines.forEach((line, lineIndex) => {
+        chip.append("text")
+          .attr("class", "link-label")
+          .attr("font-size", dims.fontSize)
+          .attr("y", dims.lines.length === 1 ? 3 : -4 + lineIndex * 13)
+          .text(line);
+      });
+    }
+  });
+
+  const nodeSel = nodeG.selectAll(".node").data(nodes).join("g")
+    .attr("class", "node")
+    .classed("selected", d => isSelected(stage, "node", d.entity.id))
+    .attr("data-stage-item-key", d => `${stage.id}:${itemKey("node", d.entity.id)}`)
+    .attr("transform", d => `translate(${d.x},${d.y})`)
+    .on("mouseenter", (event, d) => showTooltip(
+      event,
+      entityTooltipItem(stage, d.entity),
+      `${d.entity.description} (${d.entity.type.replaceAll("_", " ")})`
+    ))
+    .on("pointerdown", (event, d) => showTooltip(
+      event,
+      entityTooltipItem(stage, d.entity),
+      `${d.entity.description} (${d.entity.type.replaceAll("_", " ")})`
+    ))
+    .on("mousedown", (event, d) => showTooltip(
+      event,
+      entityTooltipItem(stage, d.entity),
+      `${d.entity.description} (${d.entity.type.replaceAll("_", " ")})`
+    ))
+    .on("click", (event, d) => showTooltip(
+      event,
+      entityTooltipItem(stage, d.entity),
+      `${d.entity.description} (${d.entity.type.replaceAll("_", " ")})`
+    ))
+    .on("mouseleave", hideTooltip)
+    .call(d3.drag()
+      .filter(() => stage.id === stages[activeIndex].id)
+      .on("start", (event, d) => {
+        event.sourceEvent?.stopPropagation?.();
+        if (isSelected(stage, "node", d.entity.id) && selectionState.keys.size > 1) {
+          startGroupDrag(stage, event, nodes, labelPlacements);
+        }
+      })
+      .on("drag", function(event, d) {
+        if (groupDragState) {
+          dragSelectedGroup(stage, event);
+          return;
+        }
+        const x = nodeClampX(d, event.x);
+        const y = nodeClampY(d, event.y);
+        d3.select(this).attr("transform", `translate(${x},${y})`);
+      })
+      .on("end", (event, d) => {
+        if (groupDragState) {
+          finishGroupDrag(stage, event);
+          return;
+        }
+        const bucket = stageOverrideBucket("nodes", stage.id);
+        const x = nodeClampX(d, event.x);
+        const y = nodeClampY(d, event.y);
+        bucket[d.entity.id] = {
+          x: nodeNormalizedX(x),
+          y: nodeNormalizedY(y)
+        };
+        saveLayoutOverrides();
+        drawPanelContents(stage);
+        setActive(activeIndex, { preserveHash: true, noTransition: true });
+      }));
+
+  nodeSel.append("rect")
+    .attr("x", d => -d.box.w / 2)
+    .attr("y", d => -d.box.h / 2)
+    .attr("width", d => d.box.w)
+    .attr("height", d => d.box.h)
+        .attr("fill", d => colorForVisualGroup(d.entity.visual_group).fill)
+        .attr("stroke", d => colorForVisualGroup(d.entity.visual_group).stroke)
+    .attr("stroke-dasharray", d => d.entity.type === "asset_pool" ? "3 3" : null);
+
+  nodeSel.each(function(d) {
+    const g = d3.select(this);
+    const lines = textLines(d.entity.label, d.box.w > 145 ? 20 : 16).slice(0, 2);
+    lines.forEach((line, idx) => {
+      g.append("text")
+        .attr("y", (idx - (lines.length - 1) / 2) * 14)
+        .text(line);
+    });
+  });
+}
+
+function renderPanel(stage, i) {
+  const panel = stageStrip.append("g")
+    .attr("class", `stage-panel ${stage.type}`)
+    .attr("transform", `translate(${i * panelStep},${topY})`);
+
+  panel.append("rect")
+    .attr("class", `stage-frame ${stage.type}`)
+    .attr("width", panelW)
+    .attr("height", panelH)
+    .attr("rx", 8);
+
+  panel.append("text")
+    .attr("class", "badge")
+    .attr("x", 26)
+    .attr("y", 30)
+    .attr("fill", stage.type === "status" ? "#247647" : "#a9483a")
+    .text(stage.type.toUpperCase());
+
+  panel.append("text")
+    .attr("class", "stage-title")
+    .attr("x", 26)
+    .attr("y", 56)
+    .text(`${stage.order}. ${stage.title}`);
+
+  panel.append("text")
+    .attr("class", "stage-period")
+    .attr("x", panelW - 26)
+    .attr("y", 30)
+    .attr("text-anchor", "end")
+    .text(stage.period || "");
+
+  textLines(stage.summary, 118).slice(0, 2).forEach((line, lineIndex) => {
+    panel.append("text")
+      .attr("class", "stage-summary")
+      .attr("x", 26)
+      .attr("y", 78 + lineIndex * 15)
+      .text(line);
+  });
+
+  const backgroundLines = Array.isArray(stage.background) ? stage.background : (stage.background ? [stage.background] : []);
+  backgroundLines.flatMap(line => textLines(line, 128)).slice(0, 2).forEach((line, lineIndex) => {
+    panel.append("text")
+      .attr("class", "stage-background")
+      .attr("x", 26)
+      .attr("y", 112 + lineIndex * 14)
+      .text(line);
+  });
+
+  const dynamic = panel.append("g").attr("class", "dynamic");
+  panels.set(stage.id, { panel, dynamic });
+  drawPanelContents(stage);
+}
+
+stages.forEach(renderPanel);
+
+function renderAxis() {
+  const axisLeft = 104;
+  const axisRight = W - 104;
+  const axisY = 58;
+  const x = d3.scaleLinear().domain([0, stages.length - 1]).range([axisLeft, axisRight]);
+
+  axisG.append("line")
+    .attr("class", "axis-line")
+    .attr("x1", axisLeft)
+    .attr("x2", axisRight)
+    .attr("y1", axisY)
+    .attr("y2", axisY);
+
+  axisG.append("line")
+    .attr("class", "axis-progress")
+    .attr("x1", axisLeft)
+    .attr("x2", axisLeft)
+    .attr("y1", axisY)
+    .attr("y2", axisY);
+
+  const ticks = axisG.selectAll(".tick")
+    .data(stages)
+    .join("g")
+    .attr("class", "tick")
+    .attr("transform", (_, i) => `translate(${x(i)},${axisY})`);
+
+  ticks.append("circle").attr("r", 7);
+  ticks.append("text")
+    .attr("y", 31)
+    .text(d => `${d.order}. ${d.type === "status" ? "Status" : "Action"}`);
+  ticks.append("text")
+    .attr("y", 47)
+    .text(d => d.title.length > 20 ? `${d.title.slice(0, 19)}...` : d.title);
+
+  ticks.on("click", (_, d) => setActive(stages.findIndex(stage => stage.id === d.id)));
+
+  axisG.append("circle")
+    .attr("class", "slider-knob")
+    .attr("r", 15)
+    .attr("cx", axisLeft)
+    .attr("cy", axisY)
+    .call(d3.drag().on("drag", event => {
+      const clamped = Math.max(axisLeft, Math.min(axisRight, event.x));
+      const next = Math.round(x.invert(clamped));
+      setActive(next);
+    }));
+
+  axisG.append("text")
+    .attr("class", "active-note")
+    .attr("x", W / 2)
+    .attr("y", 4)
+    .attr("text-anchor", "middle");
+}
+
+function setActive(index, options = {}) {
+  activeIndex = Math.max(0, Math.min(stages.length - 1, index));
+  const nextHash = `#stage=${activeIndex + 1}`;
+  if (!options.preserveHash && window.location.hash !== nextHash) {
+    window.history.replaceState(null, "", nextHash);
+  }
+  const offset = W / 2 - (activeIndex * panelStep + panelW / 2);
+  if (options.noTransition) {
+    stageStrip.attr("transform", `translate(${offset},0)`);
+  } else {
+    stageStrip.transition().duration(360).ease(d3.easeCubicOut)
+      .attr("transform", `translate(${offset},0)`);
+  }
+
+  stageStrip.selectAll(".stage-panel")
+    .classed("active", (_, i) => i === activeIndex)
+    .classed("prior", (_, i) => i < activeIndex)
+    .classed("future", (_, i) => i > activeIndex);
+  stageStrip.selectAll(".stage-frame")
+    .classed("active", (_, i, nodes) => d3.select(nodes[i].parentNode).classed("active"))
+    .classed("prior", (_, i, nodes) => d3.select(nodes[i].parentNode).classed("prior"));
+
+  const axisLeft = 104;
+  const axisRight = W - 104;
+  const axisY = 58;
+  const x = d3.scaleLinear().domain([0, stages.length - 1]).range([axisLeft, axisRight]);
+  axisG.select(".axis-progress").transition().duration(240).attr("x2", x(activeIndex));
+  axisG.select(".slider-knob").transition().duration(180).attr("cx", x(activeIndex));
+  axisG.selectAll(".tick")
+    .classed("active", (_, i) => i === activeIndex);
+  axisG.select(".active-note")
+    .text(`${stages[activeIndex].type.toUpperCase()}: ${stages[activeIndex].summary}`);
+}
+
+d3.select("#reset-stage").on("click", () => {
+  const stage = stages[activeIndex];
+  delete layoutOverrides.nodes[stage.id];
+  delete layoutOverrides.labels[stage.id];
+  clearSelection();
+  saveLayoutOverrides();
+  drawPanelContents(stage);
+  setActive(activeIndex, { preserveHash: true, noTransition: true });
+});
+
+d3.select("#reset-all").on("click", () => {
+  layoutOverrides = { nodes: {}, labels: {} };
+  clearSelection();
+  saveLayoutOverrides();
+  stages.forEach(drawPanelContents);
+  setActive(activeIndex, { preserveHash: true, noTransition: true });
+});
+
+renderAxis();
+setActive(initialStageIndex());
+window.addEventListener("hashchange", () => {
+  setActive(initialStageIndex());
+});
+</script>
+</body>
+</html>
