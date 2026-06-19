@@ -24,6 +24,12 @@ status -> action -> status -> action -> status
 
 There is no fixed number of stages. The stage count is determined from the case facts.
 
+## Example Output
+
+The chart below shows a status stage in a merger dispute. The active panel explains the current relationship structure, while the slider below lets the reader move backward and forward through the relationship history.
+
+![Example stage-wise legal relationship chart](assets/example-stagewise-relationship-chart.png)
+
 ## Why This Is Useful
 
 Many legal disputes turn on relationship changes, not just chronology. Examples include:
